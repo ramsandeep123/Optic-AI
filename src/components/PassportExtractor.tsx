@@ -48,6 +48,13 @@ export default function PassportExtractor() {
     }
   }, []);
 
+// Effect to reliably attach stream to video element
+useEffect(() => {
+  if (cameraStatus === "active" && streamRef.current && videoRef.current) {
+    videoRef.current.srcObject = streamRef.current;
+  }
+}, [cameraStatus, isCameraOpen]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -363,61 +370,6 @@ export default function PassportExtractor() {
           </div>
         )}
 
-        {isCameraOpen && (
-          <div className="camera-modal">
-            <div className="camera-container">
-              {cameraStatus === "active" ? (
-                <video ref={videoRef} autoPlay playsInline className="camera-video" />
-              ) : (
-                <div className="camera-status-overlay">
-                  {cameraStatus === "opening" && (
-                    <>
-                      <Loader2 className="animate-spin" size={48} style={{ color: 'var(--primary)', marginBottom: '20px' }} />
-                      <p>WAKING UP CAMERA...</p>
-                    </>
-                  )}
-                  {cameraStatus === "error" && (
-                    <div style={{ padding: '30px', textAlign: 'center' }}>
-                      <X size={48} style={{ color: '#ff4444', marginBottom: '20px' }} />
-                      <p style={{ color: '#ff4444', fontWeight: 'bold', marginBottom: '15px' }}>CAMERA BLOCKED</p>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '25px' }}>
-                        {cameraError}
-                      </p>
-                      <button 
-                        className="browse-btn" 
-                        style={{ width: '100%', marginBottom: '10px' }}
-                        onClick={() => {
-                          stopCamera();
-                          fallbackCameraRef.current?.click();
-                        }}
-                      >
-                        Use System Camera App
-                      </button>
-                      <button 
-                        className="btn-outline" 
-                        style={{ width: '100%' }}
-                        onClick={stopCamera}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="camera-controls">
-                <button className="cam-control-btn close" onClick={stopCamera}>
-                  <X size={24} />
-                </button>
-                {cameraStatus === "active" && (
-                  <button className="cam-capture-btn" onClick={capturePhoto}>
-                    <div className="capture-inner" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {(frontImage || backImage) && step !== "results" && (
           <div className="preview-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' }}>
@@ -652,6 +604,76 @@ export default function PassportExtractor() {
           cursor: wait;
         }
       `}</style>
+
+      {isCameraOpen && (
+        <div className="camera-modal">
+          <div className="camera-container">
+            {cameraStatus === "active" ? (
+              <>
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className="camera-video" 
+                />
+                <div className="camera-guide-overlay">
+                  <div className="guide-text">ALIGN PASSPORT HERE</div>
+                </div>
+              </>
+            ) : (
+              <div className="camera-status-overlay">
+                {cameraStatus === "opening" && (
+                  <>
+                    <Loader2 className="animate-spin" size={48} style={{ color: 'var(--primary)', marginBottom: '20px' }} />
+                    <p>WAKING UP CAMERA...</p>
+                  </>
+                )}
+                {cameraStatus === "error" && (
+                  <div style={{ padding: '30px', textAlign: 'center' }}>
+                    <X size={48} style={{ color: '#ff4444', marginBottom: '20px' }} />
+                    <p style={{ color: '#ff4444', fontWeight: 'bold', marginBottom: '15px' }}>CAMERA BLOCKED</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '25px' }}>
+                      {cameraError}
+                    </p>
+                    <button 
+                      className="browse-btn" 
+                      style={{ width: '100%', marginBottom: '10px' }}
+                      onClick={() => {
+                        stopCamera();
+                        fallbackCameraRef.current?.click();
+                      }}
+                    >
+                      Use System Camera App
+                    </button>
+                    <button 
+                      className="btn-outline" 
+                      style={{ width: '100%' }}
+                      onClick={stopCamera}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="camera-controls">
+              <button className="cam-control-btn close" onClick={stopCamera}>
+                <X size={24} />
+              </button>
+              {cameraStatus === "active" && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <button className="cam-capture-btn" onClick={capturePhoto}>
+                    <div className="capture-inner" />
+                  </button>
+                  <span style={{ color: 'white', fontSize: '10px', fontWeight: 'bold', fontFamily: 'var(--font-orbitron)', letterSpacing: '1px' }}>TAP TO CAPTURE</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
