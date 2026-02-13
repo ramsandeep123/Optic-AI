@@ -13,6 +13,9 @@ import {
   Loader2,
   Check,
   X,
+  AlertCircle,
+  Download,
+  Printer
 } from "lucide-react";
 
 const WEBHOOK_URL =
@@ -183,6 +186,10 @@ useEffect(() => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const startCamera = async () => {
     setIsCameraOpen(true);
     setCameraStatus("opening");
@@ -319,7 +326,8 @@ useEffect(() => {
   };
 
   return (
-    <div className="main-grid">
+    <>
+      <div className="main-grid">
       <section className="card">
         <div className="step-indicator" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
           <div className={`step-dot ${step === 'front' ? 'active' : frontImage ? 'completed' : ''}`}>1</div>
@@ -371,7 +379,7 @@ useEffect(() => {
         )}
 
 
-        {(frontImage || backImage) && step !== "results" && (
+        {(frontImage || backImage) && (
           <div className="preview-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' }}>
             {frontImage && (
               <div className="preview-item">
@@ -406,15 +414,15 @@ useEffect(() => {
           </div>
         )}
 
-        {step === "ready" && (
+        {/* {step === "ready" && ( */}
           <div className="ready-action" style={{ textAlign: 'center', padding: '40px 0' }}>
             <div className="glow-icon-container" style={{ marginBottom: '20px' }}>
               <Send size={48} className="upload-icon" style={{ animation: 'bounce 2s infinite' }} />
             </div>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>Both sides captured. Ready for Processing.</p>
-            <button 
+            <p style={{ color: 'var(--text-muted)', marginBottom: '25px' }}>{step === "ready" ? "Both sides captured. Ready for Processing." : ""}</p>
+            { step !== "results" ?  <button 
               className="browse-btn" 
-              style={{ width: '100%', height: '50px', fontSize: '1.1rem' }}
+              style={{ width: '100%', height: '50px', fontSize: '1.1rem', marginBottom: '10px' }}
               onClick={handleSubmit}
               disabled={submitting}
             >
@@ -427,15 +435,31 @@ useEffect(() => {
                   <Send size={20} /> Submit
                 </>
               )}
+            </button> :
+            <button className="camera-btn" style={{ flex: 1 }} onClick={resetApp}>
+              <RefreshCw size={18} /> Start New Scan
+            </button>
+            }
+            <button 
+              className="btn-outline" 
+              style={{ width: '100%', height: '45px',justifyContent: 'center',marginTop:"10px" }}
+              onClick={handlePrint}
+            >
+              <Printer size={18} /> Print
             </button>
           </div>
-        )}
+        {/* )} */}
 
-        {step === "results" && (
-          <button className="camera-btn" style={{ marginTop: '20px', width: '100%' }} onClick={resetApp}>
-            <RefreshCw size={18} /> Start New Scan
-          </button>
-        )}
+        {/* {step === "results" && (
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <button className="camera-btn" style={{ flex: 1 }} onClick={resetApp}>
+              <RefreshCw size={18} /> Start New Scan
+            </button>
+            <button className="btn-outline" style={{ flex: 1 }} onClick={handlePrint}>
+              <Printer size={18} /> Print to PDF
+            </button>
+          </div>
+        )} */}
 
         <input
           type="file"
@@ -675,5 +699,19 @@ useEffect(() => {
         </div>
       )}
     </div>
-  );
+    {/* Hidden Print Only Section */}
+    <div className="print-only">
+      {frontImage && (
+        <div className="print-image-container">
+          <img src={frontImage} className="print-image" alt="Front Side" />
+        </div>
+      )}
+      {backImage && (
+        <div className="print-image-container">
+          <img src={backImage} className="print-image" alt="Back Side" />
+        </div>
+      )}
+    </div>
+  </>
+);
 }
