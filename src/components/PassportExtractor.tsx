@@ -27,9 +27,14 @@ export default function PassportExtractor() {
   const [status, setStatus] = useState("Ready");
   const [processingFile, setProcessingFile] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<"opening" | "active" | "error">("opening");
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fallbackCameraRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const savedFront = localStorage.getItem("front_image");
@@ -171,6 +176,93 @@ export default function PassportExtractor() {
     }
   };
 
+  const startCamera = async () => {
+    setIsCameraOpen(true);
+    setCameraStatus("opening");
+    setCameraError(null);
+    
+    // Check for secure context
+    if (!window.isSecureContext) {
+      setCameraStatus("error");
+      setCameraError("In-app camera requires a secure (HTTPS) connection. Your browser blocks camera access on HTTP sites for security.");
+      return;
+    }
+
+    const tryGetMedia = async (constraints: MediaStreamConstraints) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        setCameraStatus("active");
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    // Tier 1: Ideal constraints
+    let success = await tryGetMedia({
+      video: { 
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+
+    // Tier 2: Simple environment
+    if (!success) {
+      success = await tryGetMedia({
+        video: { facingMode: "environment" },
+        audio: false
+      });
+    }
+
+    // Tier 3: Any video
+    if (!success) {
+      success = await tryGetMedia({
+        video: true,
+        audio: false
+      });
+    }
+
+    if (!success) {
+      setCameraStatus("error");
+      setCameraError("Unable to access camera. This could be due to permission settings or another app using the camera.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.width > 0 && canvas.height > 0 ? canvas.getContext("2d") : null;
+      
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+            processFile(file);
+          }
+          stopCamera();
+        }, "image/jpeg", 0.85);
+      }
+    }
+  };
+
   const resetApp = () => {
     setFrontImage(null);
     setBackImage(null);
@@ -184,7 +276,7 @@ export default function PassportExtractor() {
     localStorage.removeItem("current_step");
 
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fallbackCameraRef.current) fallbackCameraRef.current.value = "";
   };
 
   const showNotify = (msg: string) => {
@@ -216,7 +308,7 @@ export default function PassportExtractor() {
       }
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fallbackCameraRef.current) fallbackCameraRef.current.value = "";
   };
 
   return (
@@ -261,13 +353,69 @@ export default function PassportExtractor() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    cameraInputRef.current?.click();
+                    startCamera();
                   }}
                 >
                   <Camera size={20} /> Take Photo
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {isCameraOpen && (
+          <div className="camera-modal">
+            <div className="camera-container">
+              {cameraStatus === "active" ? (
+                <video ref={videoRef} autoPlay playsInline className="camera-video" />
+              ) : (
+                <div className="camera-status-overlay">
+                  {cameraStatus === "opening" && (
+                    <>
+                      <Loader2 className="animate-spin" size={48} style={{ color: 'var(--primary)', marginBottom: '20px' }} />
+                      <p>WAKING UP CAMERA...</p>
+                    </>
+                  )}
+                  {cameraStatus === "error" && (
+                    <div style={{ padding: '30px', textAlign: 'center' }}>
+                      <X size={48} style={{ color: '#ff4444', marginBottom: '20px' }} />
+                      <p style={{ color: '#ff4444', fontWeight: 'bold', marginBottom: '15px' }}>CAMERA BLOCKED</p>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '25px' }}>
+                        {cameraError}
+                      </p>
+                      <button 
+                        className="browse-btn" 
+                        style={{ width: '100%', marginBottom: '10px' }}
+                        onClick={() => {
+                          stopCamera();
+                          fallbackCameraRef.current?.click();
+                        }}
+                      >
+                        Use System Camera App
+                      </button>
+                      <button 
+                        className="btn-outline" 
+                        style={{ width: '100%' }}
+                        onClick={stopCamera}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="camera-controls">
+                <button className="cam-control-btn close" onClick={stopCamera}>
+                  <X size={24} />
+                </button>
+                {cameraStatus === "active" && (
+                  <button className="cam-capture-btn" onClick={capturePhoto}>
+                    <div className="capture-inner" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -346,7 +494,7 @@ export default function PassportExtractor() {
         />
         <input
           type="file"
-          ref={cameraInputRef}
+          ref={fallbackCameraRef}
           accept="image/*"
           capture="environment"
           style={{ display: "none" }}
