@@ -97,7 +97,7 @@ useEffect(() => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDimension = 800;
+        const maxDimension = 1200;
 
         if (width > height) {
           if (width > maxDimension) {
@@ -117,7 +117,7 @@ useEffect(() => {
         ctx?.drawImage(img, 0, 0, width, height);
         
         // Use JPEG with 0.7 quality for good compression vs quality balance
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         
         // Memory cleanup
         URL.revokeObjectURL(imageUrl);
